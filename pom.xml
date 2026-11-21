@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.github.mimdal</groupId>
+    <artifactId>project-doc-maven-plugin</artifactId>
+    <version>1.0.1-SNAPSHOT</version>
+    <packaging>maven-plugin</packaging>
+
+    <name>Project Documentation Maven Plugin</name>
+    <description>
+        A reusable Maven plugin for generating documentation
+        from YAML data files and FreeMarker templates.
+    </description>
+
+    <url>https://github.com/mimdal-code/project-doc-maven-plugin</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/license/mit</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>m.dehghan</name>
+            <email>mohamed.dehghan@gmail.com</email>
+            <url>https://github.com/mimdal-code</url>
+            <roles>
+                <role>developer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>
+            scm:git:https://github.com/mimdal-code/project-doc-maven-plugin.git
+        </connection>
+        <developerConnection>
+            scm:git:https://github.com/mimdal-code/project-doc-maven-plugin.git
+        </developerConnection>
+        <url>https://github.com/mimdal-code/project-doc-maven-plugin</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <properties>
+        <!-- Java -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>11</maven.compiler.release>
+
+        <!-- Dependencies -->
+        <maven.plugin.api.version>3.9.9</maven.plugin.api.version>
+        <maven.plugin.annotations.version>
+            ${maven.plugin.plugin.version}
+        </maven.plugin.annotations.version>
+
+        <snakeyaml.version>2.4</snakeyaml.version>
+        <freemarker.version>2.3.35</freemarker.version>
+        <plexus-utils.version>3.6.1</plexus-utils.version>
+        <junit.version>5.11.4</junit.version>
+
+        <!-- Maven Plugin Versions -->
+        <maven.plugin.plugin.version>3.15.1</maven.plugin.plugin.version>
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
+        <surefire.maven.plugin.version>3.5.2</surefire.maven.plugin.version>
+
+        <!-- Publishing Plugin Versions -->
+        <sonatype.maven.plugin.version>0.12.0</sonatype.maven.plugin.version>
+        <maven.source.plugin.version>3.4.0</maven.source.plugin.version>
+        <maven.javadoc.plugin.version>3.12.0</maven.javadoc.plugin.version>
+        <maven.gpg.plugin.version>3.2.8</maven.gpg.plugin.version>
+    </properties>
+
+    <dependencies>
+
+        <!-- Maven Plugin API -->
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-plugin-api</artifactId>
+            <version>${maven.plugin.api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Maven Plugin Annotations -->
+        <dependency>
+            <groupId>org.apache.maven.plugin-tools</groupId>
+            <artifactId>maven-plugin-annotations</artifactId>
+            <version>${maven.plugin.annotations.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Plexus Utils: override vulnerable transitive version -->
+        <dependency>
+            <groupId>org.codehaus.plexus</groupId>
+            <artifactId>plexus-utils</artifactId>
+            <version>${plexus-utils.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- YAML Parser -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>${snakeyaml.version}</version>
+        </dependency>
+
+        <!-- Template Engine -->
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>${freemarker.version}</version>
+        </dependency>
+
+        <!-- Unit Testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+
+            <!-- Java Compiler -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Plugin Descriptor Generator -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-plugin-plugin</artifactId>
+                <version>${maven.plugin.plugin.version}</version>
+                <configuration>
+                    <goalPrefix>installation-guide</goalPrefix>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>default-descriptor</id>
+                        <goals>
+                            <goal>descriptor</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Unit Test Runner -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire.maven.plugin.version}</version>
+            </plugin>
+
+            <!-- Attach Java Sources -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${maven.source.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Attach Javadocs -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven.javadoc.plugin.version}</version>
+                <configuration>
+                    <doclint>none</doclint>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Sign Main Artifact, POM and Attached Artifacts -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>${maven.gpg.plugin.version}</version>
+                <configuration>
+                    <bestPractices>true</bestPractices>
+                    <keyname>8D1053F6D09B2AEF64CD3A9DB113F7365C24FDB0</keyname>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Maven Central Publishing -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>${sonatype.maven.plugin.version}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central.sonatype.com</publishingServerId>
+                    <autoPublish>true</autoPublish>
+                    <waitUntil>published</waitUntil>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>
