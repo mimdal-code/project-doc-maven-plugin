@@ -226,7 +226,8 @@
                 <configuration>
                     <publishingServerId>central.sonatype.com</publishingServerId>
                     <autoPublish>true</autoPublish>
-                    <waitUntil>published</waitUntil>
+                    <!--accepted values: uploaded | validated | published-->
+                    <waitUntil>validated</waitUntil>
                 </configuration>
             </plugin>
 
