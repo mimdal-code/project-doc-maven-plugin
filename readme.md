@@ -11,6 +11,12 @@ Define documentation content using YAML files and control its presentation using
 
 ---
 
+## Documentation
+
+- [Developer Guide](developer-guide.md) — Learn how to create templates, define YAML data sources, and generate HTML or Markdown documentation.
+
+---
+
 ## Features
 
 - **Build-time documentation generation:** Generate project documentation as part of the Maven build lifecycle.
