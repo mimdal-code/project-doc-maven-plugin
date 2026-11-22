@@ -1,3 +1,4 @@
+template-key: properties
 properties:
   heading: "Application Properties"
   description: "General application configuration."

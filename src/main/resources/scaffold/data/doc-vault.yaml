@@ -1,3 +1,4 @@
+template-key: vault
 vault:
   heading: "Vault Configuration"
   intro: >-
