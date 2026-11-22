@@ -5,7 +5,7 @@
 
     <groupId>com.github.mimdal</groupId>
     <artifactId>project-doc-maven-plugin</artifactId>
-    <version>4.0.0</version>
+    <version>4.0.1-SNAPSHOT</version>
     <packaging>maven-plugin</packaging>
 
     <name>Project Documentation Maven Plugin</name>
@@ -43,7 +43,7 @@
             scm:git:https://github.com/mimdal-code/project-doc-maven-plugin.git
         </developerConnection>
         <url>https://github.com/mimdal-code/project-doc-maven-plugin</url>
-        <tag>project-doc-maven-plugin-4.0.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <properties>
