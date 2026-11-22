@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${main.document.title?html}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 2rem auto; max-width: 960px; padding: 0 1rem; }
+        table { border-collapse: collapse; width: 100%; margin: 1rem 0 2rem; }
+        th, td { border: 1px solid #ddd; padding: .6rem; text-align: left; vertical-align: top; }
+        th { background: #f3f3f3; }
+        code { overflow-wrap: anywhere; }
+    </style>
+</head>
+<body>
+    <h1>${main.document.title?html}</h1>
+    <#if main.document.subtitle??>
+        <p>${main.document.subtitle?html}</p>
+    </#if>
+
+    <h2>${main.environment.heading?html}</h2>
+    <p>${main.environment.description?html}</p>
+
+    <h2>${vault.vault.heading?html}</h2>
+    <p>${vault.vault.intro?html}</p>
+    <#list vault.vault.groups as group>
+        <h3>${group.heading?html}</h3>
+        <ul>
+            <#list group.items as item>
+                <li>${item.label?html}: <code>${item.key?html}</code></li>
+            </#list>
+        </ul>
+        <#if group.footnote??>
+            <p>${group.footnote?html}</p>
+        </#if>
+    </#list>
+
+    <h2>${properties.properties.heading?html}</h2>
+    <p>${properties.properties.description?html}</p>
+    <#list properties.properties.sections as section>
+        <h3>${section.heading?html}</h3>
+        <table>
+            <thead>
+                <tr><th>Property</th><th>Example value</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+                <#list section.items as item>
+                    <tr>
+                        <td><code>${item.name?html}</code></td>
+                        <td>${item.value?html}</td>
+                        <td>${item.description?html}</td>
+                    </tr>
+                </#list>
+            </tbody>
+        </table>
+    </#list>
+</body>
+</html>

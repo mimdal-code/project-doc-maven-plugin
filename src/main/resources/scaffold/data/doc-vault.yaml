@@ -1,0 +1,17 @@
+vault:
+  heading: "Vault Configuration"
+  intro: >-
+    The following keys must be configured in the application's secret store.
+    Do not put actual passwords, tokens, or secret values in this document.
+  groups:
+    - heading: "Database"
+      items:
+        - label: "Database username"
+          key: "db.username"
+        - label: "Database password"
+          key: "db.password"
+    - heading: "Authentication"
+      items:
+        - label: "Client secret"
+          key: "keycloak.client-secret"
+      footnote: "Configure the client secret in the identity provider."

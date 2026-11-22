@@ -8,7 +8,7 @@ public class TemplateConfig {
     private String name;
     private String file;
     private String output;
-    private List<DataFileConfig> dataFiles = new ArrayList<>();
+    private List<String> dataFiles = new ArrayList<>();
 
     public String getName() {
         return name;
@@ -34,11 +34,11 @@ public class TemplateConfig {
         this.output = output;
     }
 
-    public List<DataFileConfig> getDataFiles() {
+    public List<String> getDataFiles() {
         return dataFiles;
     }
 
-    public void setDataFiles(List<DataFileConfig> dataFiles) {
+    public void setDataFiles(List<String> dataFiles) {
         this.dataFiles = dataFiles;
     }
 }

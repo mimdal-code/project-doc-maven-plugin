@@ -1,43 +1,31 @@
 package com.github.mimdal.installationguide.service;
 
-import com.github.mimdal.installationguide.model.DataFileConfig;
 import com.github.mimdal.installationguide.model.TemplateConfig;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ConfigurationValidator {
 
     private final YamlDataLoader yamlDataLoader;
+
     public ConfigurationValidator(YamlDataLoader yamlDataLoader) {
         this.yamlDataLoader = yamlDataLoader;
     }
 
     public ValidationResult validate(
-            Path sourceDirectory,
+            Path projectDirectory,
             Path outputDirectory,
             List<TemplateConfig> templates
     ) {
-
         ValidationResult result = new ValidationResult();
 
-        Path resolvedSourceDirectory = validateSourceDirectory(
-                sourceDirectory,
-                result
-        );
-
-        Path resolvedOutputDirectory = validateOutputDirectory(
-                outputDirectory,
-                result
-        );
+        Path baseDirectory = validateProjectDirectory(projectDirectory, result);
+        Path resolvedOutputDirectory = validateOutputDirectory(outputDirectory, result);
 
         if (result.hasGlobalErrors()) {
             return result;
@@ -56,56 +44,32 @@ public class ConfigurationValidator {
         Set<Path> outputFiles = new HashSet<>();
 
         for (TemplateConfig configuration : templates) {
-
             if (configuration == null) {
-
-                ValidationResult.TemplateResult invalidTemplate =
-                        new ValidationResult.TemplateResult(
-                                null,
-                                "<unnamed>"
-                        );
-
+                ValidationResult.TemplateResult invalid =
+                        new ValidationResult.TemplateResult(null, "<unnamed>");
                 addTemplateError(
-                        invalidTemplate,
+                        invalid,
                         "Template configuration",
                         "A null template entry was found.",
-                        "Remove the empty <template> entry or configure it with valid values."
+                        "Remove the empty <template> entry or configure it."
                 );
-
-                result.getTemplates().add(invalidTemplate);
+                result.getTemplates().add(invalid);
                 continue;
             }
 
-            String templateName = trimToNull(configuration.getName());
-
-            if (templateName == null) {
-                templateName = "<unnamed>";
-            }
-
-            ValidationResult.TemplateResult templateResult =
+            String name = trimToNull(configuration.getName());
+            ValidationResult.TemplateResult template =
                     new ValidationResult.TemplateResult(
                             configuration,
-                            templateName
+                            name == null ? "<unnamed>" : name
                     );
+            result.getTemplates().add(template);
 
-            result.getTemplates().add(templateResult);
-
-            validateTemplateName(templateResult, configuration);
-
-            validateTemplateFile(
-                    templateResult,
-                    resolvedSourceDirectory,
-                    configuration.getFile()
-            );
-
-            validateDataFiles(
-                    templateResult,
-                    resolvedSourceDirectory,
-                    configuration.getDataFiles()
-            );
-
+            validateTemplateName(template, configuration);
+            validateTemplateFile(template, baseDirectory, configuration.getFile());
+            validateDataFiles(template, baseDirectory, configuration.getDataFiles());
             validateOutputFile(
-                    templateResult,
+                    template,
                     resolvedOutputDirectory,
                     configuration.getOutput(),
                     outputFiles
@@ -115,68 +79,34 @@ public class ConfigurationValidator {
         return result;
     }
 
-    private Path validateSourceDirectory(
-            Path sourceDirectory,
-            ValidationResult result
-    ) {
-
-        if (sourceDirectory == null) {
+    private Path validateProjectDirectory(Path directory, ValidationResult result) {
+        if (directory == null) {
             addGlobalError(
                     result,
-                    "Source directory",
-                    "Source directory is not configured.",
-                    "Configure a valid <sourceDirectory>."
+                    "Project directory",
+                    "Maven project directory is unavailable.",
+                    "Run this goal from a Maven project."
             );
             return null;
         }
 
-        Path resolved = sourceDirectory.toAbsolutePath().normalize();
-
-        if (!Files.exists(resolved)) {
+        Path resolved = directory.toAbsolutePath().normalize();
+        if (!Files.isDirectory(resolved) || !Files.isReadable(resolved)) {
             addGlobalError(
                     result,
-                    "Source directory",
-                    "Source directory does not exist: " + resolved,
-                    "Create the directory or correct the <sourceDirectory> configuration."
+                    "Project directory",
+                    "Project directory is missing or unreadable: " + resolved,
+                    "Run Maven from a valid project directory."
             );
             return null;
         }
 
-        if (!Files.isDirectory(resolved)) {
-            addGlobalError(
-                    result,
-                    "Source directory",
-                    "Source path is not a directory: " + resolved,
-                    "Configure <sourceDirectory> to point to an existing directory."
-            );
-            return null;
-        }
-
-        if (!Files.isReadable(resolved)) {
-            addGlobalError(
-                    result,
-                    "Source directory",
-                    "Source directory is not readable: " + resolved,
-                    "Check directory permissions."
-            );
-            return null;
-        }
-
-        addGlobalInfo(
-                result,
-                "Source directory",
-                "Source directory is valid: " + resolved
-        );
-
+        addGlobalInfo(result, "Project directory", "Project directory: " + resolved);
         return resolved;
     }
 
-    private Path validateOutputDirectory(
-            Path outputDirectory,
-            ValidationResult result
-    ) {
-
-        if (outputDirectory == null) {
+    private Path validateOutputDirectory(Path directory, ValidationResult result) {
+        if (directory == null) {
             addGlobalError(
                     result,
                     "Output directory",
@@ -186,78 +116,35 @@ public class ConfigurationValidator {
             return null;
         }
 
-        Path resolved = outputDirectory.toAbsolutePath().normalize();
+        Path resolved = directory.toAbsolutePath().normalize();
+        Path existing = resolved;
 
-        if (Files.exists(resolved)) {
-
-            if (!Files.isDirectory(resolved)) {
-                addGlobalError(
-                        result,
-                        "Output directory",
-                        "Output path exists but is not a directory: " + resolved,
-                        "Configure <outputDirectory> to point to a directory."
-                );
-                return null;
-            }
-
-            if (!Files.isWritable(resolved)) {
-                addGlobalError(
-                        result,
-                        "Output directory",
-                        "Output directory is not writable: " + resolved,
-                        "Check directory permissions or choose another <outputDirectory>."
-                );
-                return null;
-            }
-
-        } else {
-
-            Path existingAncestor = resolved;
-
-            while (existingAncestor != null
-                    && !Files.exists(existingAncestor)) {
-                existingAncestor = existingAncestor.getParent();
-            }
-
-            if (existingAncestor == null) {
-                addGlobalError(
-                        result,
-                        "Output directory",
-                        "No existing parent directory was found for: " + resolved,
-                        "Choose an output path under an existing writable directory."
-                );
-                return null;
-            }
-
-            if (!Files.isDirectory(existingAncestor)) {
-                addGlobalError(
-                        result,
-                        "Output directory",
-                        "The nearest existing parent is not a directory: "
-                                + existingAncestor,
-                        "Choose an output path under an existing directory."
-                );
-                return null;
-            }
-
-            if (!Files.isWritable(existingAncestor)) {
-                addGlobalError(
-                        result,
-                        "Output directory",
-                        "The nearest existing parent is not writable: "
-                                + existingAncestor,
-                        "Check directory permissions or choose another <outputDirectory>."
-                );
-                return null;
-            }
+        while (existing != null && !Files.exists(existing)) {
+            existing = existing.getParent();
         }
 
-        addGlobalInfo(
-                result,
-                "Output directory",
-                "Output directory is valid: " + resolved
-        );
+        if (existing == null || !Files.isDirectory(existing) || !Files.isWritable(existing)) {
+            addGlobalError(
+                    result,
+                    "Output directory",
+                    "Output directory has no existing writable parent: " + resolved,
+                    "Choose an output path under an existing writable directory."
+            );
+            return null;
+        }
 
+        if (Files.exists(resolved)
+                && (!Files.isDirectory(resolved) || !Files.isWritable(resolved))) {
+            addGlobalError(
+                    result,
+                    "Output directory",
+                    "Output path is not a writable directory: " + resolved,
+                    "Configure <outputDirectory> to point to a writable directory."
+            );
+            return null;
+        }
+
+        addGlobalInfo(result, "Output directory", "Output directory: " + resolved);
         return resolved;
     }
 
@@ -265,190 +152,178 @@ public class ConfigurationValidator {
             ValidationResult.TemplateResult result,
             TemplateConfig configuration
     ) {
-
         if (trimToNull(configuration.getName()) == null) {
             addTemplateError(
                     result,
                     "Template name",
                     "Template name is missing or empty.",
-                    "Provide a unique descriptive <name> for this template."
+                    "Provide a descriptive <name> for this template."
             );
         }
     }
 
     private void validateTemplateFile(
             ValidationResult.TemplateResult result,
-            Path sourceDirectory,
+            Path projectDirectory,
             String configuredFile
     ) {
-
-        Path templateFile = resolveInputFile(
+        Path file = resolveInputFile(
                 result,
-                sourceDirectory,
+                projectDirectory,
                 configuredFile,
-                "Template file",
-                "Provide a valid relative template <file> path."
+                "Template file"
         );
-
-        if (templateFile == null) {
+        if (file == null) {
             return;
         }
 
-        result.setTemplateFile(templateFile);
-
-        if (!Files.exists(templateFile)) {
-            addTemplateError(
-                    result,
-                    "Template file",
-                    "Template file does not exist: " + templateFile,
-                    buildMissingFileSuggestion(sourceDirectory, configuredFile)
-            );
-            return;
-        }
-
-        if (!Files.isRegularFile(templateFile)) {
-            addTemplateError(
-                    result,
-                    "Template file",
-                    "Template path is not a regular file: " + templateFile,
-                    "Configure <file> to point to an existing template file."
-            );
-            return;
-        }
-
-        if (!Files.isReadable(templateFile)) {
-            addTemplateError(
-                    result,
-                    "Template file",
-                    "Template file is not readable: " + templateFile,
-                    "Check file permissions."
-            );
-            return;
-        }
-
-        addTemplateInfo(
-                result,
-                "Template file",
-                "Template file is valid: " + templateFile
-        );
+        result.setTemplateFile(file);
+        validateReadableFile(result, file, "Template file", "FreeMarker template");
     }
 
     private void validateDataFiles(
             ValidationResult.TemplateResult result,
-            Path sourceDirectory,
-            List<DataFileConfig> dataFiles
+            Path projectDirectory,
+            List<String> dataFiles
     ) {
-
         if (dataFiles == null || dataFiles.isEmpty()) {
             addTemplateError(
                     result,
                     "Data files",
                     "No data files are configured for this template.",
-                    "Configure at least one <dataFile> with a <name> and <file>."
+                    "Configure at least one <file> entry inside <dataFiles>."
             );
             return;
         }
 
-        Set<String> aliases = new HashSet<>();
-
-        for (DataFileConfig dataFile : dataFiles) {
-
-            if (dataFile == null) {
-                addTemplateError(
-                        result,
-                        "Data file configuration",
-                        "A null data file entry was found.",
-                        "Remove the empty <dataFile> entry or configure it with a valid <name> and <file>."
-                );
-                continue;
-            }
-
-            String alias = trimToNull(dataFile.getName());
-
-            if (alias == null) {
-                addTemplateError(
-                        result,
-                        "Data file alias",
-                        "Data file alias is missing or empty.",
-                        "Provide a unique <name> for this data file."
-                );
-                continue;
-            }
-
-            if (!aliases.add(alias)) {
-                addTemplateError(
-                        result,
-                        "Data file alias",
-                        "Duplicate data file alias: " + alias,
-                        "Use a unique <name> for each data file within this template."
-                );
-                continue;
-            }
-
-            Path dataFilePath = resolveInputFile(
+        for (String configuredFile : dataFiles) {
+            Path file = resolveInputFile(
                     result,
-                    sourceDirectory,
-                    dataFile.getFile(),
-                    "Data file '" + alias + "'",
-                    "Configure a valid relative <file> path for data file '" + alias + "'."
+                    projectDirectory,
+                    configuredFile,
+                    "Data file"
             );
-
-            if (dataFilePath == null) {
-                continue;
-            }
-
-            if (!Files.exists(dataFilePath)) {
-                addTemplateError(
-                        result,
-                        "Data file '" + alias + "'",
-                        "Data file does not exist: " + dataFilePath,
-                        "Check the configured <file> path for data file '" + alias + "'."
-                );
-                continue;
-            }
-
-            if (!Files.isRegularFile(dataFilePath)) {
-                addTemplateError(
-                        result,
-                        "Data file '" + alias + "'",
-                        "Data path is not a regular file: " + dataFilePath,
-                        "Configure <file> to point to an existing YAML file."
-                );
-                continue;
-            }
-
-            if (!Files.isReadable(dataFilePath)) {
-                addTemplateError(
-                        result,
-                        "Data file '" + alias + "'",
-                        "Data file is not readable: " + dataFilePath,
-                        "Check file permissions."
-                );
+            if (file == null || !validateReadableFile(
+                    result, file, "Data file", "YAML file")) {
                 continue;
             }
 
             try {
-                Map<String, Object> data = yamlDataLoader.load(dataFilePath);
+                Map<String, Object> loadedData = yamlDataLoader.load(file);
 
-                result.getDataModel().put(alias, data);
+                if (loadedData.size() != 1) {
+                    throw new IllegalArgumentException(
+                            "YAML loader must return exactly one template data entry."
+                    );
+                }
+
+                String templateKey = loadedData.keySet().iterator().next();
+
+                if (result.getDataModel().containsKey(templateKey)) {
+                    addTemplateError(
+                            result,
+                            "Data file",
+                            "Duplicate template-key '" + templateKey + "' in YAML file: " + file,
+                            "Use a unique template-key for each YAML data file used by this template."
+                    );
+                    continue;
+                }
+
+                result.getDataModel().putAll(loadedData);
 
                 addTemplateInfo(
                         result,
-                        "Data file '" + alias + "'",
-                        "YAML data loaded successfully: " + dataFilePath
+                        "Data file '" + templateKey + "'",
+                        "YAML data loaded successfully: " + file
                 );
-
-            } catch (Exception e) {
+            } catch (Exception exception) {
                 addTemplateError(
                         result,
-                        "Data file '" + alias + "'",
-                        "Failed to load YAML file '"
-                                + dataFilePath
-                                + "': "
-                                + e.getMessage(),
-                        "Check the YAML syntax and ensure that the YAML root is a mapping."
+                        "Data file",
+                        "Failed to load YAML file '" + file + "': " + exception.getMessage(),
+                        "Check the YAML syntax, ensure the root is a mapping, and provide a non-empty template-key."
                 );
             }
+        }
+    }
+
+    private boolean validateReadableFile(
+            ValidationResult.TemplateResult result,
+            Path file,
+            String context,
+            String description
+    ) {
+        if (!Files.exists(file)) {
+            addTemplateError(
+                    result,
+                    context,
+                    description + " does not exist: " + file,
+                    "Check the configured file path."
+            );
+            return false;
+        }
+
+        if (!Files.isRegularFile(file)) {
+            addTemplateError(
+                    result,
+                    context,
+                    "Configured path is not a regular file: " + file,
+                    "Configure the path to point to an existing file."
+            );
+            return false;
+        }
+
+        if (!Files.isReadable(file)) {
+            addTemplateError(
+                    result,
+                    context,
+                    description + " is not readable: " + file,
+                    "Check file permissions."
+            );
+            return false;
+        }
+
+        addTemplateInfo(result, context, "File is valid: " + file);
+        return true;
+    }
+
+    private Path resolveInputFile(
+            ValidationResult.TemplateResult result,
+            Path projectDirectory,
+            String configuredPath,
+            String context
+    ) {
+        String value = trimToNull(configuredPath);
+        if (value == null) {
+            addTemplateError(
+                    result,
+                    context,
+                    "File path is missing or empty.",
+                    "Provide a valid relative or absolute file path."
+            );
+            return null;
+        }
+
+        try {
+            Path path = Path.of(value);
+            Path resolved = path.isAbsolute()
+                    ? path.normalize()
+                    : projectDirectory.resolve(path).normalize();
+
+            addTemplateInfo(
+                    result,
+                    context,
+                    "Resolved path: " + resolved.toAbsolutePath().normalize()
+            );
+            return resolved.toAbsolutePath().normalize();
+        } catch (Exception exception) {
+            addTemplateError(
+                    result,
+                    context,
+                    "Invalid file path: " + value,
+                    "Provide a valid relative or absolute file path."
+            );
+            return null;
         }
     }
 
@@ -458,312 +333,114 @@ public class ConfigurationValidator {
             String configuredOutput,
             Set<Path> outputFiles
     ) {
-
-        String outputValue = trimToNull(configuredOutput);
-
-        if (outputValue == null) {
+        String value = trimToNull(configuredOutput);
+        if (value == null) {
             addTemplateError(
                     result,
                     "Output file",
                     "Output path is missing or empty.",
-                    "Provide a relative <output> path for this template."
+                    "Provide a relative <output> path."
             );
             return;
         }
-
-        Path relativePath;
 
         try {
-            relativePath = Path.of(outputValue);
+            Path relative = Path.of(value);
+            if (relative.isAbsolute()) {
+                addTemplateError(
+                        result,
+                        "Output file",
+                        "Absolute output paths are not allowed: " + value,
+                        "Use a path relative to <outputDirectory>."
+                );
+                return;
+            }
 
-        } catch (Exception e) {
-            addTemplateError(
-                    result,
-                    "Output file",
-                    "Invalid output path: " + outputValue,
-                    "Provide a valid relative <output> path."
-            );
-            return;
-        }
+            Path output = outputDirectory.resolve(relative).toAbsolutePath().normalize();
+            if (!output.startsWith(outputDirectory)) {
+                addTemplateError(
+                        result,
+                        "Output file",
+                        "Output path escapes the configured output directory: " + output,
+                        "Use a relative path inside <outputDirectory>."
+                );
+                return;
+            }
 
-        if (relativePath.isAbsolute()) {
-            addTemplateError(
-                    result,
-                    "Output file",
-                    "Absolute output paths are not allowed: " + outputValue,
-                    "Use a path relative to <outputDirectory>."
-            );
-            return;
-        }
+            result.setOutputFile(output);
 
-        Path output = outputDirectory.resolve(relativePath)
-                .toAbsolutePath()
-                .normalize();
-
-        if (!output.startsWith(outputDirectory)) {
-            addTemplateError(
-                    result,
-                    "Output file",
-                    "Output path escapes the configured output directory: "
-                            + output,
-                    "Use a relative <output> path that remains inside <outputDirectory>."
-            );
-            return;
-        }
-
-        result.setOutputFile(output);
-
-        if (Files.exists(output)) {
-
-            if (!Files.isRegularFile(output)) {
+            if (Files.exists(output) && !Files.isRegularFile(output)) {
                 addTemplateError(
                         result,
                         "Output file",
                         "Existing output path is not a regular file: " + output,
-                        "Choose an <output> path that points to a file."
+                        "Choose an output path that points to a file."
                 );
                 return;
             }
 
-            if (!Files.isWritable(output)) {
+            if (Files.exists(output) && !Files.isWritable(output)) {
                 addTemplateError(
                         result,
                         "Output file",
                         "Existing output file is not writable: " + output,
-                        "Check file permissions or choose another <output> path."
+                        "Check file permissions or choose another output path."
                 );
                 return;
             }
-        }
 
-        Path parent = output.getParent();
-
-        if (parent == null) {
-            addTemplateError(
-                    result,
-                    "Output file",
-                    "Could not determine the parent directory for: " + output,
-                    "Provide a valid relative <output> path."
-            );
-            return;
-        }
-
-        Path existingParent = parent;
-
-        while (existingParent != null && !Files.exists(existingParent)) {
-            existingParent = existingParent.getParent();
-        }
-
-        if (existingParent == null
-                || !Files.isDirectory(existingParent)
-                || !Files.isWritable(existingParent)) {
-
-            addTemplateError(
-                    result,
-                    "Output file",
-                    "Output parent directory is missing, invalid, or not writable: "
-                            + parent,
-                    "Check directory permissions or choose an output path under a writable directory."
-            );
-            return;
-        }
-
-        if (!outputFiles.add(output)) {
-            addTemplateError(
-                    result,
-                    "Output file",
-                    "Multiple templates use the same output path: " + output,
-                    "Configure a unique <output> path for each template."
-            );
-            return;
-        }
-
-        addTemplateInfo(
-                result,
-                "Output file",
-                "Output path is valid: " + output
-        );
-    }
-
-    private Path resolveInputFile(
-            ValidationResult.TemplateResult result,
-            Path sourceDirectory,
-            String configuredPath,
-            String context,
-            String suggestion
-    ) {
-
-        String value = trimToNull(configuredPath);
-
-        if (value == null) {
-            addTemplateError(
-                    result,
-                    context,
-                    "File path is missing or empty.",
-                    suggestion
-            );
-            return null;
-        }
-
-        Path relativePath;
-
-        try {
-            relativePath = Path.of(value);
-
-        } catch (Exception e) {
-            addTemplateError(
-                    result,
-                    context,
-                    "Invalid file path: " + value,
-                    suggestion
-            );
-            return null;
-        }
-
-        if (relativePath.isAbsolute()) {
-            addTemplateError(
-                    result,
-                    context,
-                    "Absolute file paths are not allowed: " + value,
-                    "Use a path relative to the configured source directory."
-            );
-            return null;
-        }
-
-        Path resolved = sourceDirectory.resolve(relativePath)
-                .toAbsolutePath()
-                .normalize();
-
-        if (!resolved.startsWith(sourceDirectory)) {
-            addTemplateError(
-                    result,
-                    context,
-                    "File path escapes the configured source directory: "
-                            + resolved,
-                    "Use a relative path that remains inside <sourceDirectory>."
-            );
-            return null;
-        }
-
-        if (Files.exists(resolved)) {
-            try {
-                Path realSource = sourceDirectory.toRealPath();
-                Path realFile = resolved.toRealPath();
-
-                if (!realFile.startsWith(realSource)) {
-                    addTemplateError(
-                            result,
-                            context,
-                            "File resolves outside the configured source directory: "
-                                    + realFile,
-                            "Do not use symbolic links that point outside <sourceDirectory>."
-                    );
-                    return null;
-                }
-
-            } catch (IOException e) {
+            Path parent = output.getParent();
+            Path existing = parent;
+            while (existing != null && !Files.exists(existing)) {
+                existing = existing.getParent();
+            }
+            if (existing == null || !Files.isDirectory(existing) || !Files.isWritable(existing)) {
                 addTemplateError(
                         result,
-                        context,
-                        "Could not resolve file path: " + resolved
-                                + ". " + e.getMessage(),
-                        "Check the file and directory permissions."
+                        "Output file",
+                        "Output parent directory is missing, invalid, or not writable: " + parent,
+                        "Choose an output path under a writable directory."
                 );
-                return null;
+                return;
             }
-        }
 
-        return resolved;
-    }
+            if (!outputFiles.add(output)) {
+                addTemplateError(
+                        result,
+                        "Output file",
+                        "Multiple templates use the same output path: " + output,
+                        "Configure a unique <output> path for each template."
+                );
+                return;
+            }
 
- private String buildMissingFileSuggestion(
-        Path sourceDirectory,
-        String configuredFile
-) {
-
-    List<String> availableFiles = findAvailableFiles(sourceDirectory);
-
-    StringBuilder suggestion = new StringBuilder();
-
-    suggestion.append("Check the configured path '")
-            .append(configuredFile)
-            .append("'. Ensure that the file exists under ")
-            .append(sourceDirectory)
-            .append(".");
-
-    if (!availableFiles.isEmpty()) {
-        suggestion.append(" Available files include: ")
-                .append(String.join(", ", availableFiles))
-                .append(".");
-    }
-
-    return suggestion.toString();
-}
-
-    private List<String> findAvailableFiles(Path sourceDirectory) {
-
-        if (sourceDirectory == null
-                || !Files.isDirectory(sourceDirectory)) {
-            return new ArrayList<>();
-        }
-
-        try (Stream<Path> stream = Files.walk(sourceDirectory, 3)) {
-
-            return stream
-                    .filter(Files::isRegularFile)
-                    .map(sourceDirectory::relativize)
-                    .map(Path::toString)
-                    .sorted()
-                    .limit(30)
-                    .collect(Collectors.toList());
-
-        } catch (IOException e) {
-            return new ArrayList<>();
+            addTemplateInfo(result, "Output file", "Output path is valid: " + output);
+        } catch (Exception exception) {
+            addTemplateError(
+                    result,
+                    "Output file",
+                    "Invalid output path: " + value,
+                    "Provide a valid relative <output> path."
+            );
         }
     }
 
     private String trimToNull(String value) {
-
         if (value == null) {
             return null;
         }
-
         String trimmed = value.trim();
-
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private void addGlobalError(
-            ValidationResult result,
-            String context,
-            String message,
-            String suggestion
-    ) {
-
-        result.getGlobalIssues().add(
-                new ValidationIssue(
-                        ValidationIssue.Severity.ERROR,
-                        context,
-                        message,
-                        suggestion
-                )
-        );
+    private void addGlobalError(ValidationResult result, String context, String message, String suggestion) {
+        result.getGlobalIssues().add(new ValidationIssue(
+                ValidationIssue.Severity.ERROR, context, message, suggestion));
     }
 
-    private void addGlobalInfo(
-            ValidationResult result,
-            String context,
-            String message
-    ) {
-
-        result.getGlobalIssues().add(
-                new ValidationIssue(
-                        ValidationIssue.Severity.INFO,
-                        context,
-                        message,
-                        null
-                )
-        );
+    private void addGlobalInfo(ValidationResult result, String context, String message) {
+        result.getGlobalIssues().add(new ValidationIssue(
+                ValidationIssue.Severity.INFO, context, message, null));
     }
 
     private void addTemplateError(
@@ -772,15 +449,8 @@ public class ConfigurationValidator {
             String message,
             String suggestion
     ) {
-
-        result.getIssues().add(
-                new ValidationIssue(
-                        ValidationIssue.Severity.ERROR,
-                        context,
-                        message,
-                        suggestion
-                )
-        );
+        result.getIssues().add(new ValidationIssue(
+                ValidationIssue.Severity.ERROR, context, message, suggestion));
     }
 
     private void addTemplateInfo(
@@ -788,14 +458,7 @@ public class ConfigurationValidator {
             String context,
             String message
     ) {
-
-        result.getIssues().add(
-                new ValidationIssue(
-                        ValidationIssue.Severity.INFO,
-                        context,
-                        message,
-                        null
-                )
-        );
+        result.getIssues().add(new ValidationIssue(
+                ValidationIssue.Severity.INFO, context, message, null));
     }
 }

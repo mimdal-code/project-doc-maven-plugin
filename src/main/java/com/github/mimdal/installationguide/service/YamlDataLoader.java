@@ -14,9 +14,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 public class YamlDataLoader {
 
     public Map<String, Object> load(Path file) throws IOException {
-
         LoaderOptions options = new LoaderOptions();
-
         Yaml yaml = new Yaml(new SafeConstructor(options));
 
         Object data;
@@ -38,10 +36,9 @@ public class YamlDataLoader {
         }
 
         Map<?, ?> source = (Map<?, ?>) data;
-        Map<String, Object> result = new LinkedHashMap<>();
+        Map<String, Object> values = new LinkedHashMap<>();
 
         for (Map.Entry<?, ?> entry : source.entrySet()) {
-
             Object key = entry.getKey();
 
             if (!(key instanceof String)) {
@@ -50,8 +47,27 @@ public class YamlDataLoader {
                 );
             }
 
-            result.put((String) key, entry.getValue());
+            values.put((String) key, entry.getValue());
         }
+
+        Object templateKeyValue = values.remove("template-key");
+
+        if (!(templateKeyValue instanceof String)) {
+            throw new IllegalArgumentException(
+                    "YAML root must contain a string 'template-key': " + file
+            );
+        }
+
+        String templateKey = ((String) templateKeyValue).trim();
+
+        if (templateKey.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "YAML 'template-key' must not be empty: " + file
+            );
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put(templateKey, values);
 
         return result;
     }

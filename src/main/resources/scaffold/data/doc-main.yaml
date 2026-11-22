@@ -1,0 +1,11 @@
+document:
+  title: "Application Installation Guide"
+  subtitle: "Installation and configuration instructions"
+  version: "1.0.0"
+  author: ""
+
+environment:
+  heading: "Installation Environment"
+  description: >-
+    Describe the runtime, operating system, prerequisites, and preparation
+    steps required before installing the application.

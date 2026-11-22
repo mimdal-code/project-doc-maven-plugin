@@ -5,7 +5,6 @@ import com.github.mimdal.installationguide.service.*;
 import freemarker.template.TemplateException;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
@@ -15,19 +14,15 @@ import java.util.List;
 //noinspection unused
 @Mojo(
         name = "generate",
-        defaultPhase = LifecyclePhase.GENERATE_RESOURCES,
         threadSafe = true
 )
 public class GenerateMojo extends AbstractMojo {
 
-    @Parameter(
-            defaultValue = "${project.basedir}/src/main/resources/installation-guide",
-            required = true
-    )
-    private File sourceDirectory;
+    @Parameter(defaultValue = "${project.basedir}", readonly = true, required = true)
+    private File projectDirectory;
 
     @Parameter(
-            defaultValue = "${project.build.directory}/installation-guide",
+            defaultValue = "${project.build.directory}/project-doc",
             required = true
     )
     private File outputDirectory;
@@ -66,7 +61,7 @@ public class GenerateMojo extends AbstractMojo {
         getLog().info("Validating configuration...");
 
         ValidationResult validationResult = configurationValidator.validate(
-                sourceDirectory == null ? null : sourceDirectory.toPath(),
+                projectDirectory == null ? null : projectDirectory.toPath(),
                 outputDirectory == null ? null : outputDirectory.toPath(),
                 templates
         );
@@ -152,15 +147,6 @@ public class GenerateMojo extends AbstractMojo {
         getLog().info("");
         getLog().info("Configuration validation report");
         getLog().info("--------------------------------");
-
-        if (sourceDirectory != null) {
-            getLog().info("Source directory:");
-            getLog().info("  Configured: " + sourceDirectory);
-            getLog().info(
-                    "  Resolved:   "
-                            + sourceDirectory.toPath().toAbsolutePath().normalize()
-            );
-        }
 
         if (outputDirectory != null) {
             getLog().info("Output directory:");

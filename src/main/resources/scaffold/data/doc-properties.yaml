@@ -1,0 +1,19 @@
+properties:
+  heading: "Application Properties"
+  description: "General application configuration."
+
+  sections:
+    - heading: "Database Configuration"
+      items:
+        - name: "spring.datasource.url"
+          value: "jdbc:postgresql://localhost/app"
+          description: "Database connection URL"
+        - name: "spring.datasource.username"
+          value: ""
+          description: "Database username"
+
+    - heading: "Monitoring"
+      items:
+        - name: "management.tracing.enabled"
+          value: "true"
+          description: "Enable distributed tracing"

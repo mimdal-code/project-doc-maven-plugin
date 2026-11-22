@@ -10,7 +10,6 @@ class TemplateConfigTest {
 
     @Test
     void shouldHaveNullDefaultValuesForScalarFields() {
-
         TemplateConfig config = new TemplateConfig();
 
         assertNull(config.getName());
@@ -20,7 +19,6 @@ class TemplateConfigTest {
 
     @Test
     void shouldInitializeDataFilesAsEmptyList() {
-
         TemplateConfig config = new TemplateConfig();
 
         assertNotNull(config.getDataFiles());
@@ -29,39 +27,33 @@ class TemplateConfigTest {
 
     @Test
     void shouldSetAndGetScalarFields() {
-
         TemplateConfig config = new TemplateConfig();
 
-        config.setName("installation-guide");
-        config.setFile("template/guide.ftl");
-        config.setOutput("guide.md");
+        config.setName("markdown");
+        config.setFile("template/index.md.tmpl");
+        config.setOutput("index.md");
 
-        assertEquals("installation-guide", config.getName());
-        assertEquals("template/guide.ftl", config.getFile());
-        assertEquals("guide.md", config.getOutput());
+        assertEquals("markdown", config.getName());
+        assertEquals("template/index.md.tmpl", config.getFile());
+        assertEquals("index.md", config.getOutput());
     }
 
     @Test
     void shouldSetAndGetDataFiles() {
-
         TemplateConfig config = new TemplateConfig();
 
-        DataFileConfig main = new DataFileConfig();
-        main.setName("main");
-        main.setFile("doc-main.yaml");
-
-        DataFileConfig vault = new DataFileConfig();
-        vault.setName("vault");
-        vault.setFile("doc-vault.yaml");
-
-        List<DataFileConfig> dataFiles = List.of(main, vault);
+        List<String> dataFiles = List.of(
+                "doc-main.yaml",
+                "doc-vault.yaml",
+                "doc-properties.yaml"
+        );
 
         config.setDataFiles(dataFiles);
 
         assertSame(dataFiles, config.getDataFiles());
-        assertEquals(2, config.getDataFiles().size());
-        assertSame(main, config.getDataFiles().get(0));
-        assertSame(vault, config.getDataFiles().get(1));
+        assertEquals(3, config.getDataFiles().size());
+        assertEquals("doc-main.yaml", config.getDataFiles().get(0));
+        assertEquals("doc-vault.yaml", config.getDataFiles().get(1));
+        assertEquals("doc-properties.yaml", config.getDataFiles().get(2));
     }
-
 }
